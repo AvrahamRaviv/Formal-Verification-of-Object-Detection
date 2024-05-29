@@ -1250,7 +1250,7 @@ def attack_with_general_specs(model, x, data_min, data_max,
     # if arguments.Config['general']['save_output']:
     #     arguments.Globals['out']['pred'] = output.cpu()
 
-    print('Model output of first 5 examples:\n', output[:5])
+    # print('Model output of first 5 examples:\n', output[:5])
 
     C_mat, rhs_mat, cond_mat, same_number_const = build_conditions(x, list_target_label_arrays)
 

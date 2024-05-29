@@ -1,0 +1,24 @@
+model:
+  name: d_loc_test
+  path: models/OD_models/d_loc_weights.pt
+  tau: 0.1
+data:
+  dataset: d_loc_test
+  start: 0
+  end: 100
+  std: [1.]
+  mean: [0.]
+  test_csv: models/OD_models/d_loc_test_100.csv
+  num_outputs: 1
+specification:
+  epsilon: 0.0001
+  norm: .inf
+  robustness_type: OD_IoU
+attack:
+  pgd_restarts: 2
+solver:
+  batch_size: 1
+  beta-crown:
+    iteration: 10
+bab:
+  timeout: 180

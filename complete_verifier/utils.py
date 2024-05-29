@@ -374,7 +374,7 @@ def expand_path(path):
 
 
 def print_model(model):
-    print('Model:', model)
+    # print('Model:', model)
     if arguments.Config['debug']['view_model']:
         print('Perturbed nodes:')
         for node in model.nodes():

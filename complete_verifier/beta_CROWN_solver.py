@@ -37,7 +37,7 @@ from heuristics.nonlinear import precompute_A
 
 class LiRPANet:
     def __init__(self, model_ori, in_size, c=None, device=None,
-                 cplex_processes=None):
+                 cplex_processes=None, gt=None):
         """
         convert pytorch model to auto_LiRPA module
         """
@@ -82,7 +82,8 @@ class LiRPANet:
                     "optimizer": eval(model_args['optimize_graph']) if model_args['optimize_graph'] else None,
                 }
             },
-            device=self.device
+            device=self.device,
+            gt=gt
         )
         self.net = eval(general_args['graph_optimizer'])(self.net)
         self.root = self.net[self.net.root_names[0]]
@@ -433,7 +434,7 @@ class LiRPANet:
             'verbosity': 1,
         })
         self.set_crown_bound_opts('alpha')
-        self._get_split_nodes(verbose=True)
+        self._get_split_nodes(verbose=False)
 
         # expand x to align with C's batch size for multi target verification
         batch = self.c.size()[0]

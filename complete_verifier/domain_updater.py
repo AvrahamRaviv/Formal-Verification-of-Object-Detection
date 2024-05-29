@@ -334,7 +334,5 @@ class DomainUpdaterSimple(DomainUpdater):
                 upd_list[k] = self.as_tensor(upd_list[k])
         for k in self.node_names:
             if len(upd_domain[k]):
-                d['lower_bounds'][k][0].view(self.num_domain, -1)[
-                    upd_domain[k], upd_idx[k]] = upd_val[k]
-                d['upper_bounds'][k][1].view(self.num_domain, -1)[
-                    upd_domain[k], upd_idx[k]] = upd_val[k]
+                d['lower_bounds'][k][0].view(self.num_domain, -1)[upd_domain[k], [idx.long() for idx in upd_idx[k]]] = upd_val[k]
+                d['upper_bounds'][k][1].view(self.num_domain, -1)[upd_domain[k], [idx.long() for idx in upd_idx[k]]] = upd_val[k]

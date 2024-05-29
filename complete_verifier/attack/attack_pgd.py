@@ -206,7 +206,7 @@ def process_vnn_lib_attack(vnnlib, x):
 
 
 def attack(model_ori, x, vnnlib, verified_status, verified_success,
-           crown_filtered_constraints=None, initialization='uniform'):
+           crown_filtered_constraints=None, initialization='uniform', gt=None):
     GAMA_loss = False
     if 'auto_attack' not in arguments.Config["attack"]["attack_mode"]:
         if "diversed" in arguments.Config["attack"]["attack_mode"]:
@@ -242,7 +242,7 @@ def attack(model_ori, x, vnnlib, verified_status, verified_success,
         attack_ret, attack_images, attack_margins, all_adv_candidates = attack_function(
             model_ori, x, data_min_repeat[:, :len(list_target_label_arrays[0]), ...],
             data_max_repeat[:, :len(list_target_label_arrays[0]), ...], list_target_label_arrays,
-            initialization=initialization, GAMA_loss=GAMA_loss)
+            initialization=initialization, GAMA_loss=GAMA_loss, gt=gt)
 
     else:
         raise NotImplementedError('Auto-attack interfact has not been implemented yet.')
@@ -455,14 +455,14 @@ def build_conditions(x, list_target_label_arrays):
     return C_mat, rhs_mat, cond_mat, same_number_const
 
 
-def default_adv_example_finalizer(model_ori, x, best_deltas, data_max, data_min, C_mat, rhs_mat, cond_mat):
+def default_adv_example_finalizer(model_ori, x, best_deltas, data_max, data_min, C_mat, rhs_mat, cond_mat, gt=None):
     # x and best_deltas has shape (batch, c, h, w).
     # data_min and data_max have shape (batch, spec, c, h, w).
     attack_image = torch.max(torch.min((x + best_deltas).unsqueeze(1), data_max), data_min)
     assert (attack_image >= data_min).all()
     assert (attack_image <= data_max).all()
 
-    attack_output = model_ori(attack_image.view(-1, *x.shape[1:])).view(*attack_image.shape[:2], -1)
+    attack_output = model_ori(attack_image.view(-1, *x.shape[1:]), gt).view(*attack_image.shape[:2], -1)
     # [batch_size, num_or_spec, out_dim]
 
     if arguments.Config['general']['save_output']:
@@ -589,7 +589,8 @@ def pgd_attack_with_general_specs(model, X, data_min, data_max, C_mat, rhs_mat,
                                   initialization='uniform', GAMA_loss=False,
                                   num_restarts=None, pgd_steps=None,
                                   only_replicate_restarts=False,
-                                  return_early_stopped=False):
+                                  return_early_stopped=False,
+                                  gt=None):
 
     r''' the functional function for pgd attack
 
@@ -646,6 +647,13 @@ def pgd_attack_with_general_specs(model, X, data_min, data_max, C_mat, rhs_mat,
     X = X.expand(-1, *extra_dim, *(-1,) * (X_ndim - 1))
     extra_dim = (X.shape[1], X.shape[2])
 
+    # expand gt as well:
+    # Input shape is [1, 1, 90, 90], and been expanded to [1, 50, 1, 1, 90, 90]
+    # gt.shape is [4], and need to expand to [50, 4]
+    if gt is not None:
+        gt = gt.view(1, -1).expand(X.shape[1], -1)
+
+
     if initialization == 'osi':
         # X_init = OSI_init(model, X, y, epsilon, alpha, num_classes, iter_steps=attack_iters, extra_dim=extra_dim, upper_limit=upper_limit, lower_limit=lower_limit)
         osi_start_time = time.time()
@@ -680,8 +688,10 @@ def pgd_attack_with_general_specs(model, X, data_min, data_max, C_mat, rhs_mat,
 
     for _ in range(attack_iters):
         inputs = normalize(X + delta)
-        output = model(inputs.view(-1, *input_shape[1:])).view(
-            input_shape[0], *extra_dim, num_classes)
+        if gt is None:
+            output = model(inputs.view(-1, *input_shape[1:])).view(input_shape[0], *extra_dim, num_classes)
+        else:
+            output = model(inputs.view(-1, *input_shape[1:]), gt=gt).view(input_shape[0], *extra_dim, num_classes)
 
         if GAMA_loss:
             # Output on original model is needed if gama loss is used.
@@ -731,15 +741,11 @@ def pgd_attack_with_general_specs(model, X, data_min, data_max, C_mat, rhs_mat,
             # For each batch element, we want to select from the best over
             # (restarts, num_classes-1) dimension.
             # delta_targeted has shape (batch, c, h, w).
-            delta_targeted = delta.view(
-                delta.size(0), -1, *input_shape[1:]
-            ).gather(
-                dim=1, index=indices.view(
-                    -1,1,*(1,) * (len(input_shape) - 1)).expand(
-                        -1,-1,*input_shape[1:])
-            ).squeeze(1)
+            delta_targeted = delta.view(delta.size(0), -1, *input_shape[1:])\
+                .gather(dim=1, index=indices.view(-1, 1, *(1,) * (len(input_shape) - 1))
+                        .expand(-1, -1, *input_shape[1:])).squeeze(1)
 
-            best_delta[all_loss >= best_loss] = delta_targeted[all_loss >= best_loss]
+            best_delta[all_loss >= best_loss] = delta_targeted[all_loss >= best_loss].float()
             best_loss = torch.max(best_loss, all_loss)
 
         if early_stop:
@@ -1186,7 +1192,7 @@ def boundary_attack(model, x, data_min, data_max):
 
 def attack_with_general_specs(model, x, data_min, data_max,
                               list_target_label_arrays,
-                              initialization="uniform", GAMA_loss=False):
+                              initialization="uniform", GAMA_loss=False, gt=None):
     r""" Interface to PGD attack.
 
     Args:
@@ -1237,13 +1243,13 @@ def attack_with_general_specs(model, x, data_min, data_max,
         grad_status[p] = p.requires_grad
         p.requires_grad_(False)
 
-    output = model(x).detach()
+    output = model(x, gt=gt).detach()
 
     # FIXME conflict with clean prediction
     # if arguments.Config['general']['save_output']:
     #     arguments.Globals['out']['pred'] = output.cpu()
 
-    print('Model output of first 5 examples:\n', output[:5])
+    # print('Model output of first 5 examples:\n', output[:5])
 
     C_mat, rhs_mat, cond_mat, same_number_const = build_conditions(x, list_target_label_arrays)
 
@@ -1253,7 +1259,7 @@ def attack_with_general_specs(model, x, data_min, data_max,
                        data_max.unsqueeze(1), data_min.unsqueeze(1)).all():
         print("Clean prediction incorrect, attack skipped.")
         # Obtain attack margin.
-        attack_image, _, attack_margin = eval(arguments.Config["attack"]["adv_example_finalizer"])(model, x, torch.zeros_like(x), data_max, data_min, C_mat, rhs_mat, cond_mat)
+        attack_image, _, attack_margin = eval(arguments.Config["attack"]["adv_example_finalizer"])(model, x, torch.zeros_like(x), data_max, data_min, C_mat, rhs_mat, cond_mat, gt=gt)
         return True, attack_image.detach(), attack_margin.detach(), None
 
     data_min = data_min.to(device)
@@ -1268,7 +1274,7 @@ def attack_with_general_specs(model, x, data_min, data_max,
         best_deltas_, last_deltas, best_loss_, early_stopped = pgd_attack_with_general_specs(
             model, x, data_min, data_max, C_mat, rhs_mat, cond_mat, same_number_const, alpha,
             initialization=initialization, GAMA_loss=GAMA_loss,
-            use_adam=use_adam, num_restarts=min(batch_size, num_restarts), return_early_stopped=True)
+            use_adam=use_adam, num_restarts=min(batch_size, num_restarts), return_early_stopped=True, gt=gt)
         num_restarts -= batch_size
         if best_deltas is None:
             best_deltas = best_deltas_
@@ -1281,7 +1287,7 @@ def attack_with_general_specs(model, x, data_min, data_max,
             break
 
     attack_image, attack_output, attack_margin = eval(arguments.Config["attack"]["adv_example_finalizer"])(
-        model, x, best_deltas, data_max, data_min, C_mat, rhs_mat, cond_mat)
+        model, x, best_deltas, data_max, data_min, C_mat, rhs_mat, cond_mat, gt=gt)
 
     # Adversarial images/candidates in all restarts and targets. Useful for BaB-attack.
     # last_deltas has shape [batch, num_restarts, specs, c, h, w]. Need the extra num_restarts and specs dim.
@@ -1476,49 +1482,6 @@ def pgd_attack(dataset, model, x, max_eps, data_min, data_max, vnnlib=None, y=No
                 else:
                     print("untargeted pgd failed")
                     return False, attack_images.detach(), attack_margin.detach().cpu().numpy()
-    elif "NN4SYS" in dataset:
-        # attack for nn4sys, attack the specs line by line
-        # vnnlib:
-        # [num_spec, num_X, 2(lower, upper)], a y <= b, num_spec
-        specs = [vnnlib[i][0] for i in range(len(vnnlib))]
-        y_sign = [vnnlib[i][1][0][0] for i in range(len(vnnlib))]
-        y_upper = [vnnlib[i][1][0][1] for i in range(len(vnnlib))]
-
-        # attack the specs in batch
-        for i, spec in enumerate(specs):
-            # print the top 10 specs for debugging.
-            print('##### PGD attack: Batch {}, Threshold: {} ######'.format(i, y_upper[i][:10].squeeze() * y_sign[i][:10].squeeze()), y_sign[i][:10].squeeze())
-            data_min = torch.Tensor(specs[i][:,:,0]).view(-1, *x.shape[1:]).to(x.device)
-            data_max = torch.Tensor(specs[i][:,:,1]).view(-1, *x.shape[1:]).to(x.device)
-
-            x = (data_min + data_max)/2
-
-            eps = ((data_max - data_min)[(data_max - data_min)!=0]).mean().item()
-            y = torch.Tensor(y_sign[i]).to(x.device)
-            target = torch.Tensor(y_upper[i]).to(x.device)
-
-            if arguments.Config["attack"]["pgd_alpha"] == 'auto':
-                alpha = eps/4.0
-            else:
-                alpha = float(arguments.Config["attack"]["pgd_alpha"])
-
-            best_deltas, last_deltas = attack_pgd(model, X=x, y=y, target=target, epsilon=float("inf"), alpha=alpha, num_classes=arguments.Config["data"]["num_outputs"],
-                attack_iters=arguments.Config["attack"]["pgd_steps"], num_restarts=arguments.Config["attack"]["pgd_restarts"], upper_limit=data_max, lower_limit=data_min,
-                multi_targeted=False, lr_decay=arguments.Config["attack"]["pgd_lr_decay"], initialization=initialization, early_stop=arguments.Config["attack"]["pgd_early_stop"], GAMA_loss=GAMA_loss, nn4sys=True)
-
-
-            attack_images = torch.max(torch.min(x + best_deltas, data_max), data_min)
-            attack_output = model(attack_images).squeeze(0)
-            print("model output: ", model(x).squeeze(0)[:10].squeeze())
-            print("attack output: ", attack_output[:10].squeeze())
-
-            if (attack_output.detach().cpu().numpy().squeeze() * y_sign[i].squeeze() <= y_upper[i]).any():
-                index = (attack_output.detach().cpu().numpy().squeeze() * y_sign[i].squeeze() <= y_upper[i]).nonzero()
-                print("pgd succeed, against upper bound {} with ".format(y_upper[index[0]], attack_output[index[0]]))
-                return True, attack_images[index[0]].detach(), attack_output[index[0]].detach().cpu().numpy()
-
-        print("pgd failed")
-        return False, attack_images.detach(), attack_output.detach().cpu().numpy()
     else:
         print("pgd attack not supported for dataset", dataset)
         raise NotImplementedError

@@ -90,6 +90,20 @@ class SpecificationAllPositive(Specification):
             vnnlib.append([(this_x_range, new_c)])
         return vnnlib
 
+class SpecificationIoU(Specification):
+    def construct_vnnlib(self, dataset, x_range, example_idx_list):
+        vnnlib = []
+        for i in range(len(example_idx_list)):
+            this_x_range = x_range[i]
+            label = dataset['labels'][i]
+            c = torch.eye(self.num_outputs).unsqueeze(0)
+            new_c = []
+            for ii in range(self.num_outputs):
+                new_c.append((c[:, ii], self.rhs))
+            vnnlib.append([(this_x_range, new_c, label)])
+
+        return vnnlib
+
 
 def construct_vnnlib(dataset, example_idx_list):
     X = dataset['X']
@@ -158,6 +172,9 @@ def construct_vnnlib(dataset, example_idx_list):
         specification = SpecificationRunnerup()
     elif robustness_type == 'all-positive':
         specification = SpecificationAllPositive()
+    elif robustness_type == 'OD_IoU':
+        specification = SpecificationIoU()
+        # specification = SpecificationAllPositive()
     else:
         raise ValueError(robustness_type)
 

@@ -1707,3 +1707,7 @@ class Step_carvana(nn.Module):
         x = x.sum(1, keepdim=True)
 
         return x
+
+from models.OD_models.d_loc import NeuralNetwork_OL_v2_IoU
+def d_loc_test(tau=0.5):
+    return NeuralNetwork_OL_v2_IoU(tau=tau)

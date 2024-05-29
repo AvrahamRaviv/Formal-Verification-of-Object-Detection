@@ -71,7 +71,12 @@ class ABCROWN:
     ):
         # Generally, c should be constructed from vnnlib
         assert len(vnnlib) == 1, 'incomplete_verifier only support single x spec'
-        input_x, specs = vnnlib[0]
+        if arguments.Config['model']['name'] == 'd_loc_test':
+            input_x, specs, gt = vnnlib[0]
+            gt = gt.unsqueeze(0)
+        else:
+            input_x, specs = vnnlib[0]
+            gt=None
         c_transposed = False
         tighten_input_bounds = (
             arguments.Config['solver']['invprop']['tighten_input_bounds']
@@ -113,7 +118,7 @@ class ABCROWN:
             rhs = torch.tensor(specs[0][1], dtype=data.dtype, device=data.device).unsqueeze(0)
             stop_func = stop_criterion_batch_any(rhs)
 
-        model = LiRPANet(model_ori, in_size=data.shape, c=c)
+        model = LiRPANet(model_ori, in_size=data.shape, c=c, gt=gt)
 
         bound_prop_method = arguments.Config['solver']['bound_prop_method']
         if len(apply_output_constraints_to) > 0:
@@ -501,13 +506,13 @@ class ABCROWN:
         else:
             return 'safe'
 
-    def attack(self, model_ori, x, vnnlib, verified_status, verified_success):
+    def attack(self, model_ori, x, vnnlib, verified_status, verified_success, gt=None):
         if arguments.Config['model']['with_jacobian']:
             print('Using BoundedModule for attack for this model with JacobianOP')
             model = LiRPANet(model_ori, in_size=x.shape).net
         else:
             model = model_ori
-        return attack(model, x, vnnlib, verified_status, verified_success)
+        return attack(model, x, vnnlib, verified_status, verified_success, gt=gt)
 
     def main(self, interm_bounds=None):
         print(f'Experiments at {time.ctime()} on {socket.gethostname()}')
@@ -552,23 +557,7 @@ class ABCROWN:
             if arguments.Config['general']['save_output']:
                 arguments.Globals['out']['idx'] = new_idx   # saved for test
 
-            if run_mode != 'customized_data':
-                if len(csv_item) == 3:
-                    # model, vnnlib, timeout
-                    model_ori, shape, vnnlib, onnx_path = load_model_and_vnnlib(
-                        file_root, csv_item)
-                    arguments.Config['model']['onnx_path'] = os.path.join(file_root, csv_item[0])
-                    arguments.Config['specification']['vnnlib_path'] = os.path.join(
-                        file_root, csv_item[1])
-                else:
-                    # Each line contains only 1 item, which is the vnnlib spec.
-                    vnnlib = read_vnnlib(os.path.join(file_root, csv_item[0]))
-                    assert arguments.Config['model']['input_shape'] is not None, (
-                        'vnnlib does not have shape information, '
-                        'please specify by --input_shape')
-                    shape = arguments.Config['model']['input_shape']
-            else:
-                vnnlib = vnnlib_all[new_idx]  # vnnlib_all is a list of all standard vnnlib
+            vnnlib = vnnlib_all[new_idx]  # vnnlib_all is a list of all standard vnnlib
 
             # FIXME Don't write bab_args['timeout'] above.
             # Then these updates can be moved to arguments.update_arguments()
@@ -605,6 +594,7 @@ class ABCROWN:
                 data_min = x_range.select(-1, 0).reshape(vnnlib_shape)
                 data_max = x_range.select(-1, 1).reshape(vnnlib_shape)
                 x = x_range.mean(-1).reshape(vnnlib_shape)  # only the shape of x is important.
+                gt = vnnlib[0][2].unsqueeze(0)
             adhoc_tuning(data_min, data_max, model_ori)
 
             rhs_offset = arguments.Config['specification']['rhs_offset']
@@ -612,13 +602,13 @@ class ABCROWN:
                 vnnlib = add_rhs_offset(vnnlib, rhs_offset)
 
             model_ori = model_ori.to(device)
-            x, data_max, data_min = x.to(device), data_max.to(device), data_min.to(device)
+            x, data_max, data_min, gt = x.to(device), data_max.to(device), data_min.to(device), gt.to(device)
             verified_status, verified_success = 'unknown', False
 
             if arguments.Config['attack']['pgd_order'] == 'before':
                 (verified_status, verified_success, _,
                  attack_margins, all_adv_candidates) = self.attack(
-                    model_ori, x, vnnlib, verified_status, verified_success)
+                    model_ori, x, vnnlib, verified_status, verified_success, gt=gt)
             else:
                 attack_margins = all_adv_candidates = None
 

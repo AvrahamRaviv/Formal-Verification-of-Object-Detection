@@ -67,7 +67,7 @@ def clean_acc(model_name, images, labels):
     :oad the resnet models and measure the clean accuracy
     Args:
         model_name:
-            Either resnet2b or resnet4b
+            Either or resnet4b
         images:
             The test images with pixel value 0-1
         labels:

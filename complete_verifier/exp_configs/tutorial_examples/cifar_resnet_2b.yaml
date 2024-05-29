@@ -15,9 +15,9 @@ attack:  # Currently attack is only implemented for Linf norm.
   pgd_steps: 100  # Increase for a stronger attack. A PGD attack will be used before verification to filter on non-robust data examples.
   pgd_restarts: 30  # Increase for a stronger attack.
 solver:
-  batch_size: 2048  # Number of subdomains to compute in parallel in bound solver. Decrease if you run out of memory.
+  batch_size: 1  # Number of subdomains to compute in parallel in bound solver. Decrease if you run out of memory.
   alpha-crown:
-    iteration: 100   # Number of iterations for alpha-CROWN optimization. Alpha-CROWN is used to compute all intermediate layer bounds before branch and bound starts.
+    iteration: 1   # Number of iterations for alpha-CROWN optimization. Alpha-CROWN is used to compute all intermediate layer bounds before branch and bound starts.
     lr_alpha: 0.1    # Learning rate for alpha in alpha-CROWN. The default (0.1) is typically ok.
   beta-crown:
     lr_alpha: 0.01  # Learning rate for optimizing the alpha parameters, the default (0.01) is typically ok, but you can try to tune this parameter to get better lower bound.

@@ -267,7 +267,11 @@ def load_model(weights_loaded=True):
     if arguments.Config['model']['name'] is not None:
         # You can customize this function to load your own model based on model name.
         try:
-            model_ori = eval(arguments.Config['model']['name'])()  # pylint: disable=eval-used
+            if arguments.Config['model']['name'] == 'd_loc_test':
+                tau = arguments.Config['model']['tau']
+                model_ori = eval(arguments.Config['model']['name'])(tau)  # pylint: disable=eval-used
+            else:
+                model_ori = eval(arguments.Config['model']['name'])()  # pylint: disable=eval-used
         except Exception:  # pylint: disable=broad-except
             print(f'Cannot load pytorch model definition "{arguments.Config["model"]["name"]}()". '
                   f'"{arguments.Config["model"]["name"]}()" must be a callable that returns a torch.nn.Module object.')
@@ -282,6 +286,11 @@ def load_model(weights_loaded=True):
         if arguments.Config["model"]["path"] is not None:
             # Load pytorch model
             # You can customize this function to load your own model based on model name.
+            if 'd_loc' in arguments.Config["model"]["name"]:
+                sd = torch.jit.load(arguments.Config["model"]["path"])
+                # sd is RecursiveScriptModule, load it into ori_model.model
+                model_ori.model.load_state_dict(sd.state_dict())
+                return model_ori
             sd = torch.load(expand_path(arguments.Config["model"]["path"]),
                             map_location=torch.device('cpu'))
             if 'state_dict' in sd:

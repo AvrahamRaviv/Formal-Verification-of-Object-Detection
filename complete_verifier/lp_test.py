@@ -66,7 +66,7 @@ def compare_optimized_bounds_against_lp_bounds(
         'verbosity': 0,
     })
     model.set_crown_bound_opts('alpha')
-    model._get_split_nodes(verbose=True)
+    model._get_split_nodes(verbose=False)
     model._set_A_options()
 
     # Find all layers which bounds should be tested

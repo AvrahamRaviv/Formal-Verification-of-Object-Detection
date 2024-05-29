@@ -61,7 +61,7 @@ class ConfigHandler:
         self.add_argument('--config', type=str, help='Path to YAML format config file.', hierarchy=None)
 
         h = ["general"]
-        self.add_argument("--device", type=str, default="cuda", choices=["cpu", "cuda"],
+        self.add_argument("--device", type=str, default="cpu", choices=["cpu", "cuda"],
                           help='Select device to run verifier, cpu or cuda (GPU).',
                           hierarchy=h + ["device"])
         self.add_argument("--seed", type=int, default=100, help='Random seed.',
@@ -191,6 +191,9 @@ class ConfigHandler:
         self.add_argument('--model_with_jacobian', action='store_true',
                           help='Indicate that the model contains JacobianOP.',
                           hierarchy=h + ['with_jacobian'])
+        self.add_argument("--tau", type=float, default=0.5,
+                            help='Tau for IoU calculation.',
+                            hierarchy=h + ["tau"])
 
         h = ["data"]
         self.add_argument("--start", type=int, default=0, help='Start from the i-th property in specified dataset.',
@@ -213,6 +216,12 @@ class ConfigHandler:
         self.add_argument('--pkl_path', type=str, default=None,
                           help="Load properties to verify from a .pkl file (only used for oval20 dataset).",
                           hierarchy=h + ["pkl_path"])
+        self.add_argument('--test_csv', type=str, default=None,
+                          help="Load test data from a .csv file.",
+                          hierarchy=h + ["test_csv"])
+        self.add_argument('--size', type=int, default=90,
+                          help="Resize the image to size x size.",
+                          hierarchy=h + ["size"])
         self.add_argument("--dataset", type=str, default=None,
                           help="Dataset name (only if not using specifications from a .csv file). Dataset must be defined in utils.py. For customized data, checkout custom/custom_model_data.py.",
                           hierarchy=h + ["dataset"])
@@ -961,7 +970,7 @@ class ConfigHandler:
                     f.write(ret_string)
             return ret_string
 
-    def parse_config(self, args=None, verbose=True):
+    def parse_config(self, args=None, verbose=False):
         """
         Main function to parse parameter configurations. The commandline arguments have the highest priority;
         then the parameters specified in yaml config file. If a parameter does not exist in either commandline
