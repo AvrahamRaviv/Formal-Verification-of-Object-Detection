@@ -7,5 +7,5 @@ Formal Verification of Object Detection
 
 This repository contains the code used to implement the paper on [Formal Verification of Object Detection](https://arxiv.org/pdf/2407.01295).
 
-For verification purposes, the code uses the SOTA verification tool [Alpha-Beta-Crwon](https://arxiv.org/pdf/2103.06624.pdf).
+For verification purposes, the code uses the SOTA verification tool [Alpha-Beta-Crown](https://arxiv.org/pdf/2103.06624.pdf).
 
