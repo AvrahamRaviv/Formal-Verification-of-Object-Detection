@@ -71,12 +71,12 @@ class ABCROWN:
     ):
         # Generally, c should be constructed from vnnlib
         assert len(vnnlib) == 1, 'incomplete_verifier only support single x spec'
-        if arguments.Config['model']['name'] == 'd_loc_test':
+        if arguments.Config['model']['name'] in ['d_loc_test', 'LARD_test']:
             input_x, specs, gt = vnnlib[0]
             gt = gt.unsqueeze(0)
         else:
             input_x, specs = vnnlib[0]
-            gt=None
+            gt = None
         c_transposed = False
         tighten_input_bounds = (
             arguments.Config['solver']['invprop']['tighten_input_bounds']

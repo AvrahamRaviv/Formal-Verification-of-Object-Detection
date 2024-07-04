@@ -1,24 +1,24 @@
 model:
-  name: d_loc_test
-  path: models/OD_models/d_loc_weights.pt
+  name: LARD_test
+  path: models/OD_models/LARD_weights.pt
   tau_min: 0.1
   tau_max: 0.5
 data:
-  dataset: d_loc_test
+  dataset: LARD_test
   start: 0
   end: 10
   std: [1.]
   mean: [0.]
-  test_csv: models/OD_models/d_loc_test_10.csv
+  test_csv: models/OD_models/LARD_test.pkl
   num_outputs: 1
 specification:
-  epsilon: 0.2
+  epsilon: 0.000000001
   norm: .inf
   robustness_type: OD_IoU
 attack:
   pgd_restarts: 2
 solver:
-  batch_size: 2
+  batch_size: 1
   beta-crown:
     iteration: 10
 bab:

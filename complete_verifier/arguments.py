@@ -191,9 +191,12 @@ class ConfigHandler:
         self.add_argument('--model_with_jacobian', action='store_true',
                           help='Indicate that the model contains JacobianOP.',
                           hierarchy=h + ['with_jacobian'])
-        self.add_argument("--tau", type=float, default=0.5,
-                            help='Tau for IoU calculation.',
-                            hierarchy=h + ["tau"])
+        self.add_argument("--tau_min", type=float, default=0.5,
+                            help='Tau min for IoU calculation.',
+                            hierarchy=h + ["tau_min"])
+        self.add_argument("--tau_max", type=float, default=0.5,
+                            help='Tau max for IoU calculation.',
+                            hierarchy=h + ["tau_max"])
 
         h = ["data"]
         self.add_argument("--start", type=int, default=0, help='Start from the i-th property in specified dataset.',

@@ -21,6 +21,9 @@ import torch
 import torchvision.datasets as datasets
 import torchvision.transforms as transforms
 import arguments
+from datasets.d_loc.custom_from_MNIST import CustomMnistDataset_OL
+from torch.utils.data import DataLoader
+import pickle
 
 
 def make_eps_tensor(eps):
@@ -100,7 +103,7 @@ def load_dataset():
     """Load regular datasets such as MNIST and CIFAR."""
     database_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'datasets')
     normalize = transforms.Normalize(mean=arguments.Config["data"]["mean"], std=arguments.Config["data"]["std"])
-    if arguments.Config["data"]["dataset"] == 'MNIST' or arguments.Config["data"]["dataset"] == 'd_loc_test':
+    if arguments.Config["data"]["dataset"] in ['MNIST', 'd_loc_test', 'LARD_test']:
         loader = datasets.MNIST
     elif arguments.Config["data"]["dataset"] == 'CIFAR':
         loader = datasets.CIFAR10
@@ -331,11 +334,9 @@ def load_pkl_dataset(spec):
     eps_new = [torch.reshape(torch.tensor(i, dtype=torch.get_default_dtype()), (1, -1, 1, 1)) for i in eps_new]
     return (X, labels, data_max, data_min, eps_new, runnerup, target_label)
 
-from ver_IoU.solver.data.d_loc.custom_from_MNIST import CustomMnistDataset_OL
-from torch.utils.data import DataLoader
 def load_d_loc_dataset(spec):
     test_df = pd.read_csv(arguments.Config["data"]["test_csv"])
-    testingData = CustomMnistDataset_OL(test_df, test=True, new_size=arguments.Config["data"]["size"])
+    testingData = CustomMnistDataset_OL(test_df, test=True, ns=arguments.Config["data"]["size"])
     test_dataloader = DataLoader(testingData, batch_size=1, shuffle=True)
     test_iterator = iter(test_dataloader)
     # stack all input images as X, and y as labels
@@ -354,6 +355,29 @@ def load_d_loc_dataset(spec):
         # labels.append(label[0])
     # stack all images in X, and delete second dimension
     X = torch.stack(X, dim=0).squeeze(1)
+
+    test_data, data_max, data_min = load_dataset()
+    eps_temp = make_eps_tensor(spec['epsilon'])
+    std = torch.tensor(arguments.Config["data"]["std"],
+                       dtype=torch.get_default_dtype())
+    eps_temp = torch.reshape(eps_temp / std, (1, -1, 1, 1))
+    return (X, labels, data_max, data_min, eps_temp)
+
+def load_LARD_dataset(spec):
+    test_pkl = arguments.Config["data"]["test_csv"]
+    with open(test_pkl, 'rb') as f:
+        testingData = pickle.load(f)
+
+    # load testingData['x_train'] and testingData['y_train']
+    # Their current type is numpy.ndarray, convert them to torch.tensor
+
+    X = testingData['x_train'] / 255
+    labels = testingData['y_train'] * 256
+    # take first 10 samples for testing
+    X = X[:10]
+    labels = labels[:10]
+    X = torch.tensor(X)
+    labels = torch.tensor(labels)
 
     test_data, data_max, data_min = load_dataset()
     eps_temp = make_eps_tensor(spec['epsilon'])

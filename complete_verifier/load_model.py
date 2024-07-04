@@ -267,9 +267,10 @@ def load_model(weights_loaded=True):
     if arguments.Config['model']['name'] is not None:
         # You can customize this function to load your own model based on model name.
         try:
-            if arguments.Config['model']['name'] == 'd_loc_test':
-                tau = arguments.Config['model']['tau']
-                model_ori = eval(arguments.Config['model']['name'])(tau)  # pylint: disable=eval-used
+            if arguments.Config['model']['name'] in ['d_loc_test', 'LARD_test']:
+                tau_min = arguments.Config['model']['tau_min']
+                tau_max = arguments.Config['model']['tau_max']
+                model_ori = eval(arguments.Config['model']['name'])(tau_min, tau_max)  # pylint: disable=eval-used
             else:
                 model_ori = eval(arguments.Config['model']['name'])()  # pylint: disable=eval-used
         except Exception:  # pylint: disable=broad-except
@@ -290,6 +291,13 @@ def load_model(weights_loaded=True):
                 sd = torch.jit.load(arguments.Config["model"]["path"])
                 # sd is RecursiveScriptModule, load it into ori_model.model
                 model_ori.model.load_state_dict(sd.state_dict())
+                return model_ori
+            elif 'LARD' in arguments.Config["model"]["name"]:
+                _sd = torch.load(arguments.Config["model"]["path"], map_location=torch.device('cpu')).state_dict()
+                # add prefix 'conv' to keys starting with 0/2/4, and 'linear' to keys starting with 7/9/11
+                sd = {'conv' + k if k.startswith(('0', '2', '4')) else 'linear' + k if k.startswith(('7', '9', '11')) else k: v for k, v in _sd.items()}
+                # sd is RecursiveScriptModule, load it into ori_model.model
+                model_ori.model.load_state_dict(sd)
                 return model_ori
             sd = torch.load(expand_path(arguments.Config["model"]["path"]),
                             map_location=torch.device('cpu'))

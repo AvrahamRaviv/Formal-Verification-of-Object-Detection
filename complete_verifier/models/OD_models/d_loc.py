@@ -113,16 +113,16 @@ class NeuralNetwork_BrightnessContrast(nn.Module):
 # build new model, which call to NeuralNetwork_OL_v2, and add IoU block to calculate IoU
 # The model should get also the gt coordinates as input
 class NeuralNetwork_OL_v2_IoU(nn.Module):
-    def __init__(self, classif=False, tau=0.5):
+    def __init__(self, classif=False, tau_min=0.5, tau_max=0.5):
         super(NeuralNetwork_OL_v2_IoU, self).__init__()
         self.classif = classif
         self.model = NeuralNetwork_OL_v2(classif)
-        self.iou = IoU.IoU(tau)
+        self.iou = IoU.IoU(tau_min, tau_max)
 
     def forward(self, x, gt=None):
         # x is the input image
         # gt is the ground truth coordinates - bounding box
-        _logits = self.model(x.float())  # * 28 / 15
+        _logits = self.model(x.float()) * 28 / 15
 
         # Calculate the required modifications without in-place operations
         col2 = _logits[:, 2] - _logits[:, 0]

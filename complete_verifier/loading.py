@@ -20,7 +20,7 @@ import torch
 import numpy as np
 from load_model import load_model, load_model_onnx, Customized  # pylint: disable=unused-import
 from read_vnnlib import read_vnnlib
-from data_utils import load_eran_dataset, load_sdp_dataset, load_d_loc_dataset
+from data_utils import load_eran_dataset, load_sdp_dataset, load_d_loc_dataset, load_LARD_dataset
 from data_utils import load_sampled_dataset, load_generic_dataset
 from data_utils import load_pkl_dataset
 from utils import get_save_path, expand_path
@@ -56,6 +56,8 @@ def load_verification_dataset():
         dataset_method = load_generic_dataset
     elif 'd_loc' in arguments.Config["data"]["dataset"]:
         dataset_method = load_d_loc_dataset
+    elif 'LARD' in arguments.Config["data"]["dataset"]:
+        dataset_method = load_LARD_dataset
     else:
         raise NotImplementedError(
             'Dataset not supported in this file! '
@@ -225,7 +227,7 @@ def parse_run_mode():
             assert arguments.Config['model']['input_shape'] is not None, 'vnnlib does not have shape information, please specify by --input_shape'
             shape = arguments.Config['model']['input_shape']
             vnnlib_all = [vnnlib]  # Only 1 vnnlib file.
-    if 'd_loc' in arguments.Config["model"]["name"]:
+    if 'd_loc' in arguments.Config["model"]["name"] or 'LARD' in arguments.Config["model"]["name"]:
         model_ori = load_model(weights_loaded=True)
     else:
         raise NotImplementedError

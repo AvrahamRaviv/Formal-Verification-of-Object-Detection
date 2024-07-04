@@ -53,22 +53,23 @@ class MinLayer(nn.Module):
 
 
 class IoU(nn.Module):
-    def __init__(self, tau=0.5):
+    def __init__(self, tau_min=0.5, tau_max=0.5):
         super(IoU, self).__init__()
-        self.tau = tau
+        self.tau_min = tau_min
+        self.tau_max = tau_max
         # Intersection Calculation
         self.linear1 = nn.Linear(8, 8, bias=False)
         # init weights and biases. The order is: x_g, y_g, w_g, h_g, x_d, y_d, w_d, h_d
         # The output of the layer should be:
         # x_g, y_g, x_g + w_g, y_g + h_g, x_d, y_d, x_d + w_d, y_d + h_d
         self.linear1.weight.data = torch.tensor([[1, 0, 0, 0, 0, 0, 0, 0],
-                                                    [0, 1, 0, 0, 0, 0, 0, 0],
-                                                    [1, 0, 1, 0, 0, 0, 0, 0],
-                                                    [0, 1, 0, 1, 0, 0, 0, 0],
-                                                    [0, 0, 0, 0, 1, 0, 0, 0],
-                                                    [0, 0, 0, 0, 0, 1, 0, 0],
-                                                    [0, 0, 0, 0, 1, 0, 1, 0],
-                                                    [0, 0, 0, 0, 0, 1, 0, 1]], dtype=torch.float32)
+                                                 [0, 1, 0, 0, 0, 0, 0, 0],
+                                                 [1, 0, 1, 0, 0, 0, 0, 0],
+                                                 [0, 1, 0, 1, 0, 0, 0, 0],
+                                                 [0, 0, 0, 0, 1, 0, 0, 0],
+                                                 [0, 0, 0, 0, 0, 1, 0, 0],
+                                                 [0, 0, 0, 0, 1, 0, 1, 0],
+                                                 [0, 0, 0, 0, 0, 1, 0, 1]], dtype=torch.float32)
 
         self.linear2 = nn.Linear(4, 2, bias=False)
         # init weights and biases. The order is: x_i1, y_i1, x_i2, y_i2
@@ -88,11 +89,12 @@ class IoU(nn.Module):
         self.linear3.weight.data = torch.tensor([[1, 1, -1]], dtype=torch.float32)
 
         # IoU Calculation and Constraint
-        self.linear4 = nn.Linear(2, 1, bias=False)
+        self.linear4 = nn.Linear(2, 2, bias=False)
         # init weights and biases. The order is: A_{I}, A_{U}
-        # A_{I} - tau * A_{U}
-        self.linear4.weight.data = torch.tensor([[1, -self.tau]], dtype=torch.float32)
-
+        # a: lower bound cond: A_{I} - tau_max * A_{U}
+        # b: upper bound cond: A_{I} - tau_min * A_{U}
+        self.linear4.weight.data = torch.tensor([[1, -tau_max],
+                                                [1, -tau_min]], dtype=torch.float32)
 
     def forward(self, Input):
         # first layer: intersection calculation
@@ -130,6 +132,12 @@ class IoU(nn.Module):
         # IoU Calculation and Constraint
         z = self.linear4(torch.cat([Area.unsqueeze(1), Union], dim=1))
 
+        # now z is a 2-dimensional tensor, we need to reduce it to 1-dimensional tensor
+        # by the following condition: [-a + b - ReLU(-b) - ReLU(a)]
+        z = -z[:, 0] + z[:, 1] - torch.relu(-z[:, 1]) - torch.relu(z[:, 0])
+
+        # creating several z tests, zz = [[1, -1], [-1, 1], [1, 1], [-1, -1]]
+
         return z
 
 # common IoU
@@ -161,10 +169,9 @@ def test_IoU():
     B_g = torch.tensor([[0, 0, 10, 10]], dtype=torch.float32)
     B_d = torch.tensor([[5, 5, 10, 10]], dtype=torch.float32)
 
-
     z = _IoU(B_g, B_d)
 
-    iou = IoU(tau=0.5)
+    iou = IoU(tau_min=0.5, tau_max=0.5)
     z = iou(torch.cat([B_g, B_d], dim=1))
 
     # test2, different x,y coordinates
@@ -174,15 +181,13 @@ def test_IoU():
 
     z = _IoU(B_g, B_d)
 
-    iou = IoU(tau=0.5)
+    iou = IoU(tau_min=0.5, tau_max=0.5)
     z = iou(torch.cat([B_g, B_d], dim=1))
-
 
     # Now run both examples together as a batch
     B_g = torch.tensor([[0, 0, 10, 10], [0, 1, 5, 10]], dtype=torch.float32)
     B_d = torch.tensor([[5, 5, 10, 10], [4, 3, 4, 9]], dtype=torch.float32)
     z = iou(torch.cat([B_g, B_d], dim=1))
-
 
 
 # main
