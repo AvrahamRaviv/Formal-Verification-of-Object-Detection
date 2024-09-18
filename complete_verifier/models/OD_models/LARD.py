@@ -96,10 +96,10 @@ class Neural_network_LARD_BrightnessContrast(nn.Module):
 # build new model, which call to Neural_network_LARD_IoU, and add IoU block to calculate IoU
 # The model should get also the gt coordinates as input
 class Neural_network_LARD_IoU(nn.Module):
-    def __init__(self, tau_min=0.5, tau_max=0.5):
+    def __init__(self, tau=0.5):
         super(Neural_network_LARD_IoU, self).__init__()
         self.model = Neural_network_LARD()
-        self.iou = IoU.IoU(tau_min, tau_max)
+        self.iou = IoU.IoU(tau)
 
     def forward(self, x, gt=None):
         # x is the input image

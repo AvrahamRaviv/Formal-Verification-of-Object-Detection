@@ -53,10 +53,9 @@ class MinLayer(nn.Module):
 
 
 class IoU(nn.Module):
-    def __init__(self, tau_min=0.5, tau_max=0.5):
+    def __init__(self, tau=0.5):
         super(IoU, self).__init__()
-        self.tau_min = tau_min
-        self.tau_max = tau_max
+        self.tau = tau
         # Intersection Calculation
         self.linear1 = nn.Linear(8, 8, bias=False)
         # init weights and biases. The order is: x_g, y_g, w_g, h_g, x_d, y_d, w_d, h_d
@@ -89,12 +88,10 @@ class IoU(nn.Module):
         self.linear3.weight.data = torch.tensor([[1, 1, -1]], dtype=torch.float32)
 
         # IoU Calculation and Constraint
-        self.linear4 = nn.Linear(2, 2, bias=False)
+        self.linear4 = nn.Linear(2, 1, bias=False)
         # init weights and biases. The order is: A_{I}, A_{U}
-        # a: lower bound cond: A_{I} - tau_max * A_{U}
-        # b: upper bound cond: A_{I} - tau_min * A_{U}
-        self.linear4.weight.data = torch.tensor([[1, -tau_max],
-                                                [1, -tau_min]], dtype=torch.float32)
+        # A_{I} - tau * A_{U}
+        self.linear4.weight.data = torch.tensor([[1, -self.tau]], dtype=torch.float32)
 
     def forward(self, Input):
         # first layer: intersection calculation
@@ -132,12 +129,6 @@ class IoU(nn.Module):
         # IoU Calculation and Constraint
         z = self.linear4(torch.cat([Area.unsqueeze(1), Union], dim=1))
 
-        # now z is a 2-dimensional tensor, we need to reduce it to 1-dimensional tensor
-        # by the following condition: [-a + b - ReLU(-b) - ReLU(a)]
-        z = -z[:, 0] + z[:, 1] - torch.relu(-z[:, 1]) - torch.relu(z[:, 0])
-
-        # creating several z tests, zz = [[1, -1], [-1, 1], [1, 1], [-1, -1]]
-
         return z
 
 # common IoU
@@ -171,7 +162,7 @@ def test_IoU():
 
     z = _IoU(B_g, B_d)
 
-    iou = IoU(tau_min=0.5, tau_max=0.5)
+    iou = IoU(tau=0.5)
     z = iou(torch.cat([B_g, B_d], dim=1))
 
     # test2, different x,y coordinates
@@ -181,7 +172,7 @@ def test_IoU():
 
     z = _IoU(B_g, B_d)
 
-    iou = IoU(tau_min=0.5, tau_max=0.5)
+    iou = IoU(tau=0.5)
     z = iou(torch.cat([B_g, B_d], dim=1))
 
     # Now run both examples together as a batch

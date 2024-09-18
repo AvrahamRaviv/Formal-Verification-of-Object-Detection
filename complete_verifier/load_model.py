@@ -268,9 +268,8 @@ def load_model(weights_loaded=True):
         # You can customize this function to load your own model based on model name.
         try:
             if arguments.Config['model']['name'] in ['d_loc_test', 'LARD_test']:
-                tau_min = arguments.Config['model']['tau_min']
-                tau_max = arguments.Config['model']['tau_max']
-                model_ori = eval(arguments.Config['model']['name'])(tau_min, tau_max)  # pylint: disable=eval-used
+                tau = arguments.Config['model']['tau']
+                model_ori = eval(arguments.Config['model']['name'])(tau)  # pylint: disable=eval-used
             else:
                 model_ori = eval(arguments.Config['model']['name'])()  # pylint: disable=eval-used
         except Exception:  # pylint: disable=broad-except

@@ -1710,8 +1710,8 @@ class Step_carvana(nn.Module):
 
 from models.OD_models.d_loc import NeuralNetwork_OL_v2_IoU
 from models.OD_models.LARD import Neural_network_LARD_IoU
-def d_loc_test(tau_min=0.5, tau_max=0.5):
-    return NeuralNetwork_OL_v2_IoU(tau_min=tau_min, tau_max=tau_max)
+def d_loc_test(tau=0.5):
+    return NeuralNetwork_OL_v2_IoU(tau=tau)
 
-def LARD_test(tau_min=0.5, tau_max=0.5):
-    return Neural_network_LARD_IoU(tau_min=tau_min, tau_max=tau_max)
+def LARD_test(tau=0.5):
+    return Neural_network_LARD_IoU(tau=tau)

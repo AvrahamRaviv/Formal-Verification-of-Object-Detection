@@ -1,8 +1,7 @@
 model:
   name: d_loc_test
   path: models/OD_models/d_loc_weights.pt
-  tau_min: 0.1
-  tau_max: 0.5
+  tau: 0.5
 data:
   dataset: d_loc_test
   start: 0
@@ -12,7 +11,7 @@ data:
   test_csv: models/OD_models/d_loc_test_10.csv
   num_outputs: 1
 specification:
-  epsilon: 0.2
+  epsilon: 0.1
   norm: .inf
   robustness_type: OD_IoU
 attack:

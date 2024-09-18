@@ -1,8 +1,7 @@
 model:
   name: LARD_test
   path: models/OD_models/LARD_weights.pt
-  tau_min: 0.1
-  tau_max: 0.5
+  tau: 0.1
 data:
   dataset: LARD_test
   start: 0
