@@ -11,7 +11,7 @@ data:
   test_csv: models/OD_models/LARD_test.pkl
   num_outputs: 1
 specification:
-  epsilon: 0.000000001
+  epsilon: 0.0000000001
   norm: .inf
   robustness_type: OD_IoU
 attack:
