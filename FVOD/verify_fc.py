@@ -204,7 +204,7 @@ def generate_base_property(
     # Generate output constraints for the prediction class being the winner
     for i, class_score in enumerate(flatten_prediction):
         if i != winner:
-            output_constraints += f"(and (<= Y_{i} Y_{winner}))\n"
+            output_constraints += f"(and (>= Y_{i} Y_{winner}))\n"
     output_constraints += "))\n"
 
     # output_constraints += f"(assert (>= Y_{winner} {confidence_threshold}))\n"
